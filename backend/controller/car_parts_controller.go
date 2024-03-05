@@ -8,21 +8,29 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 
-	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi"
 	"github.com/johnfercher/maroto/pkg/consts"
 	"github.com/johnfercher/maroto/pkg/pdf"
 )
 
-type postRequestBody struct {
+type vehicleRequestBody struct {
 	Name        string
 	Description string
 	Price       float64
 }
 
-type postRequestResponse struct {
+type response struct {
 	Status  bool   `json:"status"`
 	Message string `json:"message"`
+}
+
+type paginate struct {
+	PageNo     int                  `json:"pageNo"`
+	PerPage    int                  `json:"perPage"`
+	TotalCount *int64               `json:"totalCount"`
+	RecordList *[]model.VehiclePart `json:"recordList"`
 }
 
 func GeneratePdf(w http.ResponseWriter, r *http.Request) {
@@ -58,21 +66,38 @@ func GeneratePdf(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetRecordList(w http.ResponseWriter, r *http.Request) {
-	jsonData, err := json.Marshal("Get items")
+	var pagination paginate
+	// var dataList []model.VehiclePart
+	var count int64
+	var offset int
 
+	decoder := json.NewDecoder(r.Body)
+	defer r.Body.Close()
+	err := decoder.Decode(&pagination)
+	if err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	offset = (pagination.PageNo - 1) * pagination.PerPage
+	database.GormDB.Model(&model.VehiclePart{}).Count(&count)
+	database.GormDB.Limit(pagination.PerPage).Offset(offset).Find(&pagination.RecordList)
+	pagination.TotalCount = &count
+
+	jsonData, err := json.Marshal(pagination)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	w.Write(jsonData)
 }
 
 func PostVehiclePart(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	defer r.Body.Close()
-	var data postRequestBody
+	var data vehicleRequestBody
 	err := decoder.Decode(&data)
-
 	if err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
@@ -82,44 +107,95 @@ func PostVehiclePart(w http.ResponseWriter, r *http.Request) {
 	result := database.GormDB.Create(&vehiclePart)
 	if result.Error != nil {
 		http.Error(w, result.Error.Error(), http.StatusInternalServerError)
+		return
 	}
 
-	jsonData, err := json.Marshal(postRequestResponse{Status: true, Message: "Successfully added Vehicle record"})
+	jsonData, err := json.Marshal(response{Status: true, Message: "Successfully added Vehicle record"})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	w.Write(jsonData)
 }
 
 func EditRecord(w http.ResponseWriter, r *http.Request) {
-	jsonData, err := json.Marshal("Edited the item")
-
+	var idTemp uint64
+	var parse string = chi.URLParam(r, "vehicleId")
+	idTemp, err := strconv.ParseUint(parse, 10, 64)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		fmt.Println("Error:", err)
+		return
+	}
+	id := uint(idTemp)
+
+	decoder := json.NewDecoder(r.Body)
+	defer r.Body.Close()
+	var data vehicleRequestBody
+	err = decoder.Decode(&data)
+	if err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
 	}
 
+	result := database.GormDB.Model(&model.VehiclePart{}).Where("id", id).Updates(data)
+	if result.Error != nil {
+		http.Error(w, result.Error.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	jsonData, err := json.Marshal(response{Status: true, Message: "Successfully Edited Vehicle Record"})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
 	w.Write(jsonData)
 }
 
 func DeleteRecord(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "vehicleId")
-	fmt.Println(id)
-	// "Deleted the item"
-	jsonData, err := json.Marshal(fmt.Sprintln("ID: ", id))
+	var idTemp uint64
+	var parse string = chi.URLParam(r, "vehicleId")
+	idTemp, err := strconv.ParseUint(parse, 10, 64)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+	id := uint(idTemp)
+
+	database.GormDB.Delete(&model.VehiclePart{}, id)
+	jsonData, err := json.Marshal(response{Status: true, Message: "Successfully Deleted Vehicle record"})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	w.Write(jsonData)
 }
 
 func HandleNotFound(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(404)
-	w.Write([]byte("route does not exist"))
+	jsonData, err := json.Marshal(response{Status: false, Message: "Route does not exist"})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(jsonData)
 }
 
 func HandleMethodNotAllowed(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(405)
-	w.Write([]byte("method is not valid"))
+	jsonData, err := json.Marshal(response{Status: false, Message: "Invalid Method"})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(jsonData)
 }

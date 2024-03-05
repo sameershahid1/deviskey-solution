@@ -33,10 +33,10 @@ func main() {
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.AllowContentType("application/json"))
 
-	router.Get("/vehicle-part/list", controller.GetRecordList)
+	router.Post("/vehicle-part/list", controller.GetRecordList)
 	router.Post("/vehicle-part", controller.PostVehiclePart)
 	router.Patch("/vehicle-part/{vehicleId}", controller.EditRecord)
-	router.Get("/vehicle-part/{vehicleId}", controller.DeleteRecord)
+	router.Delete("/vehicle-part/{vehicleId}", controller.DeleteRecord)
 	router.Get("/generate-pdf", controller.GeneratePdf)
 
 	router.NotFound(controller.HandleNotFound)
