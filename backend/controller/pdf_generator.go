@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"dev-solution/model"
 	"fmt"
 	"strconv"
 	"time"
@@ -29,16 +30,26 @@ func buildHeading(m pdf.Maroto) {
 	})
 }
 
-func buildFruitList(m pdf.Maroto) {
+func generateContent(data model.VehiclePart) []string {
+	var content []string = []string{data.Name, data.Description, strconv.FormatFloat(data.Price, 'f', 2, 64)}
+	return content
+}
+
+func buildFruitList(m pdf.Maroto, data []model.VehiclePart) {
 	headings := getHeadings()
-	// contents := data.FruitList(20)
-	contents := [][]string{{"Wheel", "Red and juicy", "200"}, {"RY", "Orange and juicy", "70"}}
+	var contents [][]string
+	var totalPrice float64
+	for i := 0; i < len(data); i++ {
+		contents = append(contents, generateContent(data[i]))
+		totalPrice += data[i].Price
+	}
+
 	purpleColor := getPurpleColor()
 
 	m.SetBackgroundColor(getTealColor())
 	m.Row(10, func() {
 		m.Col(12, func() {
-			m.Text("Car Part", props.Text{
+			m.Text("Vehicle Part", props.Text{
 				Top:    2,
 				Size:   13,
 				Color:  color.NewWhite(),
@@ -76,7 +87,7 @@ func buildFruitList(m pdf.Maroto) {
 			})
 		})
 		m.Col(3, func() {
-			m.Text("$ XXXX.00", props.Text{
+			m.Text(strconv.FormatFloat(totalPrice, 'f', 2, 64), props.Text{
 				Top:   5,
 				Style: consts.Bold,
 				Size:  8,
@@ -119,8 +130,6 @@ func buildFooter(m pdf.Maroto) {
 func getHeadings() []string {
 	return []string{"Fruit", "Description", "Price"}
 }
-
-// Colours
 
 func getPurpleColor() color.Color {
 	return color.Color{

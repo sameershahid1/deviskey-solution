@@ -16,9 +16,14 @@ import (
 )
 
 type vehicleRequestBody struct {
-	Name        string
-	Description string
-	Price       float64
+	Name        string  `json:"name"`
+	Description string  `json:"description"`
+	Price       float64 `json:"price"`
+}
+
+type vehiclePatchRequestBody struct {
+	vehicleRequestBody
+	ID uint `json:"id"`
 }
 
 type response struct {
@@ -34,15 +39,22 @@ type paginate struct {
 }
 
 func GeneratePdf(w http.ResponseWriter, r *http.Request) {
-	// number := chi.URLParam(r, "number")
+	decoder := json.NewDecoder(r.Body)
+	defer r.Body.Close()
+	var data []model.VehiclePart
+	err := decoder.Decode(&data)
+	if err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
 
 	pdfGenerator := pdf.NewMaroto(consts.Portrait, consts.A4)
 	pdfGenerator.SetPageMargins(20, 10, 20)
 	buildHeading(pdfGenerator)
 	buildFooter(pdfGenerator)
-	buildFruitList(pdfGenerator)
+	buildFruitList(pdfGenerator, data)
 
-	err := pdfGenerator.OutputFileAndClose("./assets/example.pdf")
+	err = pdfGenerator.OutputFileAndClose("./assets/example.pdf")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -67,7 +79,6 @@ func GeneratePdf(w http.ResponseWriter, r *http.Request) {
 
 func GetRecordList(w http.ResponseWriter, r *http.Request) {
 	var pagination paginate
-	// var dataList []model.VehiclePart
 	var count int64
 	var offset int
 
@@ -98,6 +109,7 @@ func PostVehiclePart(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	var data vehicleRequestBody
 	err := decoder.Decode(&data)
+	fmt.Println(data)
 	if err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return

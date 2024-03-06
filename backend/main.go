@@ -19,7 +19,7 @@ func main() {
 	router := chi.NewRouter()
 	corsOption := cors.Options{
 		AllowedOrigins:   []string{"https://localhost:3000", "http://localhost:3000"},
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		ExposedHeaders:   []string{"Link"},
 		AllowCredentials: false,
@@ -37,7 +37,7 @@ func main() {
 	router.Post("/vehicle-part", controller.PostVehiclePart)
 	router.Patch("/vehicle-part/{vehicleId}", controller.EditRecord)
 	router.Delete("/vehicle-part/{vehicleId}", controller.DeleteRecord)
-	router.Get("/generate-pdf", controller.GeneratePdf)
+	router.Post("/generate-pdf", controller.GeneratePdf)
 
 	router.NotFound(controller.HandleNotFound)
 	router.MethodNotAllowed(controller.HandleMethodNotAllowed)
